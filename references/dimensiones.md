@@ -133,7 +133,7 @@ Referencias: OWASP ASVS 5.0, OWASP Top 10 2025, OWASP Secure Code Review Cheat S
   - si el código trata la ausencia distinto (`!== 'false'`), se queda.
 - **No secretos fuera del gestor de secretos:** URLs, IDs públicos y constantes van versionados.
 - **Un secreto en un solo lugar:** sin URLs que repitan contraseñas, sin copias en varios archivos.
-- **Banderas:** las apagadas por defecto no se declaran; cada bandera encendida tiene dueño y motivo.
+- **Banderas:** las apagadas por defecto no se declaran; cada bandera encendida tiene responsable y motivo.
 - **Compose y CI:**
   - imágenes fijadas;
   - nada que se baje sin verificar;
@@ -183,4 +183,4 @@ Referencias: OWASP ASVS 5.0, OWASP Top 10 2025, OWASP Secure Code Review Cheat S
 - ¿La documentación de continuidad, operación y despliegue describe lo que el sistema hace **hoy**? Cada diferencia es un hallazgo: la próxima persona o agente va a actuar sobre la versión vieja.
 - ¿Hay instrucciones que mandan a rutas, comandos o servicios que ya no existen?
 - ¿Se cumplen las reglas de `AGENTS.md` y `CLAUDE.md` en lo auditado?
-- ¿Hay decisiones del dueño contradichas por el código o la configuración?
+- ¿Hay decisiones escritas del responsable contradichas por el código o la configuración?

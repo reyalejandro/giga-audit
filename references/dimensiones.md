@@ -103,7 +103,7 @@ Referencias: OWASP ASVS 5.0, OWASP Top 10 2025, OWASP Secure Code Review Cheat S
   - el mismo artefacto en prueba y en producción;
   - sin pasos manuales escondidos.
 - **Recursos:** disco, memoria, CPU, límites de planes gratuitos, vencimientos de dominios, certificados y planes.
-- **Observabilidad:** errores enviados a Sentry o un equivalente (¿llegan?), logs con contexto y sin secretos.
+- **Observabilidad:** errores enviados a Sentry o un equivalente: comprobar que llegan (un DSN equivocado falla en silencio), logs con contexto y sin secretos.
 - **Restos:** procesos, contenedores, volúmenes, imágenes, archivos y paquetes que ya no sirven (también es regla del mínimo).
 
 ## 4. Rendimiento
@@ -133,6 +133,7 @@ Referencias: OWASP ASVS 5.0, OWASP Top 10 2025, OWASP Secure Code Review Cheat S
   - si el código trata la ausencia distinto (`!== 'false'`), se queda.
 - **No secretos fuera del gestor de secretos:** URLs, IDs públicos y constantes van versionados.
 - **Un secreto en un solo lugar:** sin URLs que repitan contraseñas, sin copias en varios archivos.
+- **Valores que parecen válidos y no lo son:** un DSN, clave o ID con la forma correcta que apunta a otro proyecto o cuenta. Comprobarlo contra el proveedor.
 - **Banderas:** las apagadas por defecto no se declaran; cada bandera encendida tiene responsable y motivo.
 - **Compose y CI:**
   - imágenes fijadas;

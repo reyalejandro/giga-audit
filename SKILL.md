@@ -1,167 +1,193 @@
 ---
 name: giga-audit
-description: Auditoría integral con evidencia, revisores independientes y un verificador que intenta refutar cada hallazgo. Revisa todo el alcance como mínimo tres veces y sigue hasta que dos pasadas seguidas no encuentren nada importante. Cubre lógica y datos, seguridad, operación, rendimiento, pruebas, configuración y la regla del mínimo (Ponytail ultra / YAGNI). Úsala SIEMPRE que pidan auditar, revisar a fondo, «buscar errores», «¿está todo bien?», «que no quede ningún error», revisar antes de publicar, desplegar, migrar o abrir ventas, después de un cambio grande, o cuando pidan code review, security review, ponytail audit o ultrareview de un repositorio, servidor, VPS, Docker o Coolify, configuración o variables de entorno, documentación o un sitio. También cuando la pregunta sea indirecta, como «¿qué falla?», «¿qué sobra?» o «¿está listo para producción?».
+description: Evidence-based full audit. Covers logic and data, security, operations, performance, tests, configuration and simplification (YAGNI). Independent finders plus a verifier that tries to refute every finding, with at least three passes over the whole scope. ALWAYS use it when asked to audit, review thoroughly, find bugs, "is everything OK?", "make sure nothing is broken", review before publishing, deploying, migrating or launching, or after a big change. Also for code review, security review or ultrareview of a repository, server, VPS, Docker, configuration, environment variables, docs or website, and for indirect questions like "what's broken?", "what's unnecessary?" or "is this production-ready?".
 ---
 
-# Giga-audit: auditoría integral
+# Giga-audit
 
-Una auditoría útil no es leer código y opinar: es **encontrar, demostrar y corregir**, con un segundo par de ojos que intenta probar que cada hallazgo es falso. Esta skill junta lo mejor de `ponytail-audit` y `ponytail-review` (qué sobra), `code-review` y `ultrareview` (muchos buscadores, verificación independiente, severidades), la revisión de 5 ejes de addy, la de 2 ejes de Matt Pocock (estándares y especificación), `feature-dev` (umbral de confianza), `doubt-driven-development` (revisor sin contexto previo) y la investigación del 25/11/2026 ([fuentes](references/fuentes.md)).
+An audit means **find, prove and fix**, not read and give opinions. Every finding goes to a second agent that tries to prove it false, and only what survives is reported.
 
-**Lo que nunca se promete:** «cero errores». Ni Anthropic lo promete con su revisión de varios agentes: una revisión sin hallazgos no prueba que el código esté libre de errores. Lo que sí se entrega es: ningún error conocido sin resolver, todo lo importante probado y la lista explícita de lo que no se pudo probar.
+Never promise "zero bugs": a review with no findings does not prove there are none. Deliver three things instead:
+- no known bug left unresolved;
+- everything important proven;
+- an explicit list of what could not be verified.
 
-## Regla del mínimo (vale en todo, también al corregir)
+## Minimum rule
 
-El dueño la fijó como regla principal: la mínima cantidad posible y óptima de código, configuración, variables, archivos y pasos. Nada que no se haya pedido y no cumpla una función. Es una dimensión más de la auditoría y también el freno de cada arreglo: un arreglo que agrega más de lo que resuelve es un hallazgo nuevo.
+It applies to the audited system and to every fix. Use the smallest amount of code, configuration, variables, files and steps that does the requested job. A fix that adds more than it solves is a new finding.
 
-- **Cada línea, archivo, dependencia, variable de entorno, servicio o paso tiene que justificar su función.** Si no la tiene, se borra.
-- **Variables de entorno:**
-  - una variable que repite el valor por defecto del código no va;
-  - lo que no es secreto va versionado (repositorio, Compose), no en el gestor de secretos;
-  - cada secreto vive en un solo lugar (una URL que repite una contraseña se arma desde esa contraseña);
-  - antes de quitar una bandera, comprobar en el código cómo se lee: si la ausencia cambia el comportamiento (`!== 'false'`), se queda.
-- **Escalera de Ponytail** antes de escribir: ¿hace falta? → ¿ya existe en el repositorio? → ¿la biblioteca estándar? → ¿la plataforma? → ¿una dependencia ya instalada? → ¿una línea? → recién ahí, el mínimo que funciona.
-- **Lo que nunca se recorta:** validación en límites de confianza, manejo de errores que evita pérdida de datos, seguridad, copias de seguridad, accesibilidad y lo pedido explícitamente.
-- **Etiquetas de simplificación:**
-  - `delete:` código muerto o especulativo;
-  - `stdlib:` reimplementa la biblioteca estándar (nombrar la función);
-  - `native:` la plataforma ya lo hace (nombrar la función);
-  - `yagni:` abstracción con un solo uso o configuración que nadie toca;
-  - `shrink:` misma lógica en menos líneas (mostrar la versión corta).
+- **Every piece justifies its function:** line, file, dependency, variable, service or step. If it can't, it goes.
+- **Environment variables:**
+  - one that repeats the code's default is unnecessary;
+  - non-secrets are versioned, not stored in the secrets manager;
+  - each secret lives in exactly one place;
+  - before removing a flag, check how the code reads it: if its absence changes behavior (`!== 'false'`), it stays.
+- **Before writing,** go through these questions in order: is it needed? → does it already exist in the repo? → the standard library? → the platform? → an installed dependency? → one line? → only then, the minimum that works.
+- **Never cut:**
+  - validation at trust boundaries;
+  - error handling that prevents data loss;
+  - security;
+  - backups;
+  - accessibility;
+  - anything explicitly requested.
 
-## Antes de empezar: alcance y vara (fase 0)
+## Phase 0: scope and bar
 
-Sin alcance cerrado la auditoría no termina nunca, o termina sin haber mirado lo importante. Escribí estas líneas al principio del informe:
+Write this at the top of the report:
 
-1. **Qué entra y qué no.** Repositorios, carpetas, servicios, servidor, documentación. Si el pedido es vago, proponé un alcance concreto y seguí; no frenes por preguntar.
-2. **Reglas del proyecto.** Leé `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `CONTRIBUTING.md`, la guía de continuidad y la memoria. Las reglas escritas del dueño le ganan a esta skill y a cualquier lista genérica.
-3. **Especificación.** De dónde sale «lo que debería hacer»: issue, plan, tarjeta o pedido del dueño. Sin especificación, el eje «¿hace lo pedido?» se informa como no evaluado.
-4. **Modelo de amenazas breve.** Qué se protege (dinero, stock, datos personales, secretos, disponibilidad), quién podría atacar, por dónde entra y qué es de confianza. Define qué cuenta como hallazgo y calibra la severidad.
-5. **Riesgos irreversibles.** Producción, cobros reales, borrado de datos, mensajes a clientes. Para estos, las acciones de la auditoría son de sólo lectura salvo autorización.
-6. **Profundidad.** Las dos hacen **tres pasadas como mínimo**: una sola pasada deja errores que la segunda y la tercera encuentran. Rápida, sin agentes, para un cambio chico; **integral** (por defecto cuando se pide «auditoría», «todo» o «que no quede nada»), con agentes y la regla de corte completa.
+1. **Scope:** what is in and what is out. If the request is vague, propose a concrete scope and proceed.
+2. **Project rules:**
+   - read `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `CONTRIBUTING.md`, the handoff docs and memory;
+   - these written rules override this skill.
+3. **Spec:** where "what it should do" comes from (issue, plan or request). Without a spec, report that axis as not evaluated.
+4. **Brief threat model:** what is protected (money, stock, personal data, secrets, availability), who might attack and how they get in. It sets what counts as a finding and how severe it is.
+5. **Irreversible actions:** production, payments, deletions, messages to third parties. On these the audit is read-only unless authorized.
+6. **Depth:**
+   - **quick**, no agents, for a small change;
+   - **full**, with agents, the default when asked for an "audit", "everything" or "nothing left";
+   - both run **at least three passes**.
 
-## El proceso (fases 1 a 7)
+## Phase 1: deterministic sweep
 
-### Fase 1: barrido determinista primero
+Tools find things fast and without hallucinating. Run what the project already has and record the first failure of each.
 
-Las herramientas encuentran rápido y sin alucinar lo que un modelo encuentra caro. Corré las que el proyecto ya tenga, sin instalar nada nuevo salvo que haga falta y lo justifiques. Guardá el primer fallo de cada una.
+- **Code:**
+  - tests, types, lint, build and project checks;
+  - secrets in code and history (gitleaks or `rg` patterns);
+  - vulnerable dependencies (`npm audit`, Trivy);
+  - dead code (knip, unused exports).
+- **Servers:**
+  - containers, networks and volumes;
+  - open ports;
+  - permissions on secret files;
+  - scheduled jobs and backups (does the latest one restore?);
+  - certificates and disk;
+  - outbound internet for each service that needs it;
+  - recent errors in the logs.
+- **Websites:** Lighthouse, browser console, broken links, 390 and 1440 px.
 
-- Pruebas, tipos, lint, build y los checks del proyecto (por ejemplo `npm run check`).
-- Secretos en el código y el historial (gitleaks o `rg` de patrones); dependencias vulnerables (`npm audit`, Trivy); código muerto (knip, ts-prune o `rg` de exportaciones sin uso).
-- En servidores:
-  - estado de contenedores, redes y volúmenes;
-  - puertos abiertos;
-  - permisos de archivos con secretos;
-  - temporizadores y copias (la última, ¿restaura?);
-  - certificados;
-  - espacio en disco;
-  - salida a internet de cada servicio que la necesita;
-  - logs de errores recientes.
-- En sitios: Lighthouse o el equivalente, consola del navegador, enlaces rotos, 390 y 1440 px.
+## Phase 2: finders by dimension
 
-### Fase 2: buscadores por dimensión (descubrimiento)
+Use one finder per dimension. On a large scope, also split by subsystem, with no overlap. What to look at in each one is in [references/dimensions.md](references/dimensions.md):
 
-Dividí el alcance para que cada buscador mire poco y a fondo. Usá un buscador por dimensión y, si el alcance es grande, partí además por subsistema, sin superposiciones. Las dimensiones y sus listas completas están en [references/dimensiones.md](references/dimensiones.md):
+1. Logic, data and spec
+2. Security
+3. Operations and reliability
+4. Performance
+5. Tests
+6. Configuration and variables
+7. Simplification
+8. UI and accessibility, if there is a UI
+9. Docs and consistency
 
-1. Lógica, datos y especificación (dinero, stock, pedidos, estados, concurrencia, idempotencia).
-2. Seguridad (OWASP ASVS 5 y Top 10 2025, webhooks, secretos, autorización, LLM si hay).
-3. Operación y confiabilidad (copias probadas, avisos, vuelta atrás, salud, recursos, despliegue).
-4. Rendimiento (consultas, N+1, paginación, bundles, Core Web Vitals).
-5. Pruebas (¿existen?, ¿prueban comportamiento?, ¿detectarían una regresión?).
-6. Configuración y variables (regla del mínimo aplicada a entornos, Compose, CI).
-7. Simplificación (Ponytail y olores de Fowler).
-8. Interfaz y accesibilidad, si hay interfaz.
-9. Documentación y coherencia (¿la documentación dice lo que el sistema hace hoy?).
+**Each finder receives:**
+- its slice of the scope;
+- the threat model and the project rules;
+- its dimensions section;
+- the format in [references/agent-prompts.md](references/agent-prompts.md).
 
-Cada buscador recibe: el alcance de su parte, el modelo de amenazas, las reglas del proyecto, su lista de la dimensión y el formato de hallazgo. **No recibe** las conclusiones de otros buscadores, porque el sesgo compartido hace que todos fallen igual. Los prompts están en [references/prompts-agentes.md](references/prompts-agentes.md).
+**Never** give a finder the conclusions of other finders: shared bias makes them all fail the same way.
 
-El buscador **no se autocensura**: reporta todo candidato con su escenario de falla, aunque dude. Filtrar es trabajo del verificador. Un buscador que verifica lo suyo descarta hallazgos reales.
+Finders **don't self-censor**: they report every candidate with its failure scenario, even when unsure. Filtering is the verifier's job.
 
-### Fase 3: verificación adversarial (refutar o promover)
+## Phase 3: adversarial verification
 
-Cada candidato pasa por un verificador **independiente**: contexto nuevo, sin el razonamiento del buscador, sólo el hallazgo escrito y acceso al código o al sistema. Su mandato es **intentar demostrar que es falso**:
-- buscar la protección que el buscador no vio;
-- leer cómo se usa de verdad;
-- reproducirlo.
+Each candidate goes to an **independent** verifier with fresh context: only the written finding and access to the system, never the finder's reasoning. Its mandate is to **prove it false**: look for the protection that was missed, read how the code is really used and reproduce the failure.
 
-- **Reproducir siempre que se pueda:** una prueba que falla, un comando, una consulta, un `curl` o una restauración. La revisión adversarial atrapa errores de razonamiento, pero no errores empíricos: sólo ejecutar los atrapa.
-- **Veredicto, con una de tres respuestas** (evita el falso consenso):
-  - `CONFIRMADO` (con la evidencia ejecutada);
-  - `REFUTADO: <cita de código o salida que lo contradice>`;
-  - `DUDA: <objeción>`. Esta obliga a una segunda mirada: o aparece evidencia que lo confirma o se descarta.
-- **Confianza:** sólo entra al informe como hallazgo lo `CONFIRMADO`, o lo plausible con confianza ≥ 80 sobre 100, marcado `PLAUSIBLE` y con lo que faltó para probarlo.
-- **Unanimidad no es verdad.** Varios agentes del mismo modelo pueden equivocarse igual. Para lo crítico (dinero, seguridad, datos) sumá un crítico de **otro modelo** si está disponible (por ejemplo Codex desde Claude, o al revés) con contexto mínimo.
+- **Reproduce whenever possible:** a failing test, a command, a query, a `curl`, a restore. Reasoning catches logic errors; only execution catches empirical ones.
+- **Verdict, one of three:**
+  - `CONFIRMED`, with executed evidence;
+  - `REFUTED`, with the quote that contradicts it;
+  - `DOUBT`, with the objection. It goes to a second verifier, which confirms it or discards it as unproven.
+- **What reaches the report:**
+  - `CONFIRMED` findings;
+  - `PLAUSIBLE` findings with confidence ≥ 80/100, plus what was missing to prove them.
+- **Unanimity is not evidence.** On critical findings (money, security, data), add a critic from **another model** when available: Codex from Claude, or the other way around.
 
-### Fase 4: deduplicar y clasificar
+## Phase 4: deduplicate and rank
 
-- **Agrupá por causa raíz,** no por síntoma. Son el mismo hallazgo: misma causa con distinta redacción, varios lugares que llaman al mismo error, falta de una protección global, o una causa y su consecuencia. Prueba útil: si arreglar uno desarma la reproducción del otro, son el mismo.
-- **Severidad,** razonada antes de asignarla. Escribí la respuesta a cada pregunta: ¿se alcanza?, ¿quién lo controla?, ¿qué precondiciones hacen falta?, ¿pide autenticación?, ¿lee o escribe?, ¿cuánto rompe?
-  - **Crítico:** pérdida de dinero, datos o secretos; caída de producción; acceso indebido.
-  - **Importante:** falla real que se va a dar en uso normal, o un recorrido principal roto.
-  - **Preexistente:** error real que no introdujo el cambio auditado; se informa aparte.
-  - **Menor:** estilo, nombres, limpieza. Con tope: no más de 5 en el informe, porque el ruido entierra lo importante.
+- **Group by root cause.** These are the same finding:
+  - the same cause worded differently;
+  - several call sites of the same bug;
+  - a missing global guard;
+  - a cause and its consequence.
 
-### Fase 5: corregir lo confirmado
+  A useful test: if fixing one breaks the other's reproduction, they are the same.
+- **Reasoned severity.** Before assigning it, answer:
+  - is it reachable?
+  - who controls the input?
+  - what preconditions does it need?
+  - does it require authentication?
+  - does it read or write?
+  - how much does it break?
 
-- **Se corrige sin preguntar** lo seguro y verificable: errores, simplificaciones, configuración y documentación desactualizada. Es la regla del dueño de aplicar toda mejora sin efectos adversos.
-- **Se pregunta antes** lo que toca producción, dinero, datos reales, borrados, secretos o una decisión del dueño (precios, proveedores, diseño). En la pregunta van la opción recomendada y su riesgo.
-- **Cómo corregir:**
-  - causa raíz, en el lugar por donde pasan todos los llamadores, no en el síntoma;
-  - con lógica de por medio, primero una prueba que falla con el error y pasa con el arreglo;
-  - cada arreglo pasa por la regla del mínimo: diff chico, sin capas nuevas.
-- **Después de corregir:** corré otra vez el barrido determinista y la prueba del arreglo.
+  | Severity | Meaning |
+  |---|---|
+  | Critical | Loss of money, data or secrets; production outage; unauthorized access |
+  | Important | Real failure in normal use, or a main flow broken |
+  | Pre-existing | Real bug the audited change didn't introduce; reported separately |
+  | Minor | Style, naming, cleanup. At most 5 in the report |
 
-### Fase 6: nueva pasada y regla de corte
+## Phase 5: fix what is confirmed
 
-- Cada pasada nueva revisa **todo el alcance** con buscadores frescos, que no vieron las pasadas anteriores, y además mira en especial lo que se cambió en la pasada anterior.
-- **Mínimo: tres pasadas completas,** siempre, aunque la primera no encuentre nada.
-- **Corte:** después de la tercera, terminás cuando **las dos últimas pasadas** no encontraron ningún hallazgo crítico ni importante nuevo y confirmado. Si la tercera encuentra algo, seguís.
-- **Tope:** 5 pasadas. Si a la quinta siguen apareciendo, el problema es de diseño, no de revisión: decilo y proponé el cambio de fondo en vez de seguir parchando.
-- Un mismo tipo de error que reaparece se corrige en su origen: una regla de lint, una prueba, una línea en `AGENTS.md` o `REVIEW.md`, o una guarda compartida. Así la auditoría converge y no gira en círculos.
+- **Without asking:** safe, verifiable fixes, such as bugs, simplifications, configuration and stale docs.
+- **Ask first** for anything touching production, money, real data, deletions, secrets or a decision that belongs to the user (prices, vendors, design). Offer the recommended option and its risk.
+- **How to fix:**
+  - at the root cause, where every caller passes, not at the symptom;
+  - when logic is involved, first a test that fails with the bug and passes with the fix;
+  - minimal diff.
+- **After fixing,** rerun the deterministic sweep and the fix's test.
 
-### Fase 7: informe
+## Phase 6: passes and stopping
+
+- Every pass reviews **the whole scope** with fresh finders that haven't seen earlier passes, and looks closely at what the previous pass changed.
+- **Minimum three full passes,** even if the first finds nothing.
+- **Stop:** from the third pass on, stop when the **last two** passes found nothing new and confirmed at critical or important severity.
+- **Cap:** 5 passes. If findings still appear on the fifth, the problem is design: say so and propose the structural change.
+- A recurring bug gets fixed at its origin: a lint rule, a test, a line in `AGENTS.md` or `REVIEW.md`, or a shared guard.
+
+## Phase 7: report
+
+Write it in the user's language, in this format:
 
 ```
-Alcance: <qué entró y qué no> · Profundidad: <rápida | integral> · Pasadas: <N, mínimo 3> (corte: <2 últimas limpias | tope>)
-Barrido determinista: <herramienta: resultado> (primer fallo guardado)
+Scope: <in / out> · Depth: <quick | full> · Passes: <N ≥ 3> (stop: <last 2 clean | cap>)
+Deterministic sweep: <tool: result, first failure>
 
-| # | Severidad | Veredicto | Dimensión | Dónde (archivo:línea / servicio) | Qué falla | Escenario de falla | Evidencia ejecutada | Estado |
-|---|---|---|---|---|---|---|---|---|
+| # | Severity | Verdict | Dimension | Where | What fails | Failure scenario | Executed evidence | Status |
 
-Simplificación (Ponytail): `<etiqueta> <qué se corta>. <reemplazo>. [ruta]` … → net: -<N> líneas, -<M> dependencias, -<K> variables
-Preexistentes (no los introdujo el cambio): …
-Menores (máximo 5): …
+Simplification: `<delete|stdlib|native|yagni|shrink>: <what to cut>. <replacement>. [path]` → net: -<N> lines, -<M> deps, -<K> variables
+Pre-existing: …
+Minor (max 5): …
 
-Comprobado y cómo: <lista: qué se probó y con qué comando o prueba>
-NO comprobado y por qué: <lista: qué no se pudo probar y qué haría falta>
-Pendiente del dueño: <decisiones o accesos que sólo él puede dar>
-Frase final: «Sin errores conocidos sin resolver en el alcance auditado» o «Quedan N abiertos», nunca «sin errores».
+Verified and how: …
+NOT verified and why: …
+Pending on the user: <decisions or access only they can give>
+Closing: "No known unresolved bugs in the audited scope" or "N still open".
 ```
 
-En español rioplatense, con la lista leí / cambié / probé / pendiente al cierre si el proyecto lo usa.
+If the project uses its own closing format, add it at the end.
 
-## Cómo ejecutarla según la herramienta
+## Running it by tool
 
-- **Claude Code.** Invocar esta skill autoriza la orquestación de varios agentes que describe.
-  - Si está la herramienta `Workflow`, cargá la skill `workflow-authoring` y armá un `pipeline`: buscadores por dimensión → verificador por hallazgo, apenas termina cada buscador → deduplicación → arreglos → nueva pasada.
-  - Si no, usá el tool `Agent` con subagentes en paralelo: un mensaje con todos los buscadores, después los verificadores.
-  - Tamaño por defecto: hasta 8 agentes por pasada. Si el usuario pide más profundidad o el alcance es enorme, escalá y avisá el costo aproximado.
-  - Para un diff grande antes de fusionar, sugerí además `/code-review ultra`. La lanza el usuario, tiene costo y verifica en la nube.
-- **Codex.** Si no podés lanzar subagentes, hacé los roles en secuencia con separación explícita.
-  - Escribí cada hallazgo en un archivo.
-  - Verificalo en una instrucción nueva que reciba sólo ese archivo y el código, con el mandato de refutarlo.
-  - Si está disponible `claude -p`, usalo como crítico de otro modelo.
-- **Sin agentes (último recurso):** hacé las fases igual, pero marcá en el informe que la verificación no fue independiente. Es menos confiable.
+- **Claude Code.** Invoking this skill authorizes the agents it describes.
+  - With the `Workflow` tool, load `workflow-authoring` and build a `pipeline`: finders → one verifier per finding as soon as each finder ends → dedup → fixes → next pass.
+  - Without `Workflow`, use `Agent`: all finders in one message, then the verifiers.
+  - Up to 8 agents per pass. Scale up on huge scopes and state the cost.
+  - For a large diff before merging, suggest `/code-review ultra`: the user launches it and it costs money.
+- **Codex or any tool without subagents:**
+  - write each finding to a file;
+  - verify it in a new instruction that gets only that file and the code;
+  - if `claude -p` is available, use it as the other-model critic.
+- **No agents at all:** run the same phases, and state in the report that verification was not independent.
 
-## Errores comunes que esta skill evita
+## Traps
 
-| Error | Corrección |
+| Trap | Fix |
 |---|---|
-| Usar sólo la lente de Ponytail y llamarlo auditoría | Ponytail es una de las 9 dimensiones |
-| Revisar sólo lo que uno tocó | Alcance cerrado y escrito; lo de afuera se nombra como no auditado |
-| «Lo leí y está bien» | Cada «está bien» dice cómo se comprobó |
-| El que construyó revisa lo suyo | Verificador independiente con mandato de refutar |
-| Diez agentes coinciden, entonces es verdad | La unanimidad no es evidencia; reproducir y, en lo crítico, sumar otro modelo |
-| Informe lleno de detalles de estilo | Tope de 5 menores; primero lo crítico |
-| Arreglar el síntoma donde se vio | Causa raíz donde pasan todos los llamadores |
-| El arreglo agrega una capa | La regla del mínimo vale para el arreglo |
-| Prometer «sin errores» | Decir qué se probó y qué no |
+| Only looking for what's unnecessary and calling it an audit | Simplification is 1 of 9 dimensions |
+| "I read it and it's fine" | Every "fine" says how it was verified |
+| The builder reviews their own work | Independent verifier that tries to refute |
+| Ten agents agree, so it's true | Reproduce it and, on critical findings, ask another model |
+| A single pass | Three at least |
+| Patching the symptom | Root cause, where all callers pass |
